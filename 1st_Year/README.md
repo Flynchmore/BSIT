@@ -1,2 +1,1 @@
-# BSIT
-A journey of code, creativity, and continuous learning – each step in my BSIT course brings me closer to mastering the digital world.
+# Each file, a step in my journey—code, creativity, and knowledge shaping my mastery of the digital world in the BSIT course.
