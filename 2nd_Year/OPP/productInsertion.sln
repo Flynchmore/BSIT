@@ -7,7 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CSharp", "CSharp", "{B41BF3
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "OOP", "OOP", "{2635D90C-0009-15D9-4729-1CBA256F3B1C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "productInsertion", "CSharp\OOP\productInsertion\productInsertion.csproj", "{D2CE8590-99F3-4B3D-8296-B646708FD629}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "productInsertion", "CSharp\OOP\2nd_Year\OOP\productInsertion\productInsertion.csproj", "{D2CE8590-99F3-4B3D-8296-B646708FD629}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "IPT", "IPT", "{00AD229D-DD4A-FD38-314F-A220D77F4C3F}"
 EndProject
