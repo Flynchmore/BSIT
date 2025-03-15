@@ -1,0 +1,38 @@
+# Ignore video files
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Ignore image files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+
+# Ignore compiled files
+bin/
+obj/
+
+# Ignore IDE settings
+.vscode/
+
+# Ignore user-specific files
+*.user
+*.suo
+
+# Ignore build artifacts
+*.dll
+*.exe
+*.pdb
+
+# Ignore temporary or backup files
+*.log
+*.bak
+*.tmp
+
+# Ignore OS-specific files
+Thumbs.db
+.DS_Store
+
