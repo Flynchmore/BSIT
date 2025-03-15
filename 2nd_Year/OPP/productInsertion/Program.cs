@@ -7,10 +7,22 @@ class MainProgram
     {
         Console.WriteLine("======================================== Product Insertion ========================================");
 
-        bool addMore = true;
-
-        while (addMore)
+        int totalProducts = 0;
+        while (true)
         {
+            Console.Write("Range of products to insert: ");
+            string totalInput = Console.ReadLine() ?? string.Empty;
+            if (int.TryParse(totalInput, out totalProducts) && totalProducts > 0)
+            {
+                break;
+            }
+            Console.WriteLine("Please enter a valid number greater than 0.");
+        }
+
+        for (int i = 1; i <= totalProducts; i++)
+        {
+            Console.WriteLine($"\n---------- Product {i} of {totalProducts} ----------");
+
             string name = "";
             while (string.IsNullOrWhiteSpace(name))
             {
@@ -51,13 +63,8 @@ class MainProgram
 
             OOP.ManageProduct.InsertNewProduct newProduct = new OOP.ManageProduct.InsertNewProduct();
             newProduct.InsertData(name, price, description);
-
-            Console.Write("Do you want to add another product? (y/n): ");
-            string choice = Console.ReadLine() ?? string.Empty .Trim().ToLower();
-            addMore = (choice == "y");
-            Console.WriteLine();
         }
 
-        Console.WriteLine("Thank you! Exiting program.");
+        Console.WriteLine("\nAll products inserted successfully. Thank you!");
     }
 }
