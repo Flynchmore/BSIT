@@ -5,7 +5,7 @@ CREATE TABLE customer (
     Email VARCHAR(255) NULL,
     Password VARCHAR(255) NULL,
     Address TEXT NULL,
-    `Contact Number` VARCHAR(255) NULL
+    ContactNumber VARCHAR(255) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Table structure for table customer_order
@@ -31,7 +31,7 @@ CREATE TABLE dispatcher (
     Email VARCHAR(255) NULL,
     Password VARCHAR(255) NULL,
     Address TEXT NULL,
-    `Contact Number` VARCHAR(255) NULL
+    ContactNumber VARCHAR(255) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Table structure for table food_menu
@@ -50,5 +50,5 @@ CREATE TABLE manager (
     Email VARCHAR(255) NULL,
     Password VARCHAR(255) NULL,
     Address TEXT NULL,
-    `Contact Number` VARCHAR(255) NULL
+    ContactNumber VARCHAR(255) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
