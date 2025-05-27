@@ -11,44 +11,45 @@ namespace Dispatcher.DispatcherEmail
         private static readonly string senderEmail = "ativocyron@gmail.com";
         private static readonly string senderPassword = "jicb umyz dqwl xpln";
 
-        private static readonly string connectionString = "Server=localhost;Database=fdom;Uid=root;Pwd=@cC3LeR@t3at_21;";
+        private static readonly string connectionString = "server=localhost; database=fdom; user=root; password=;"; //Connect to the phpMyAdmin app 
+
 
         // Send Account Registration Email
         public static void DispatcherAccountRegistrationEmail()
-{
-    string query = @"
-        SELECT DispatcherID, Name, Email, Password, Address, `Contact Number`
-        FROM dispatcher
-        ORDER BY DispatcherID DESC LIMIT 1";
-
-    using (MySqlConnection conn = new MySqlConnection(connectionString))
-    {
-        conn.Open();
-        using (MySqlCommand cmd = new MySqlCommand(query, conn))
         {
-            using (MySqlDataReader reader = cmd.ExecuteReader())
+            string query = @"
+                SELECT DispatcherID, Name, Email, Password, Address, `Contact Number`
+                FROM dispatcher
+                ORDER BY DispatcherID DESC LIMIT 1";
+
+            using (MySqlConnection conn = new MySqlConnection(connectionString))
             {
-                if (reader.Read())
+                conn.Open();
+                using (MySqlCommand cmd = new MySqlCommand(query, conn))
                 {
-                    string recipientEmail = reader["Email"].ToString() ?? string.Empty;
-                    string dispatcherName = reader["Name"].ToString() ?? string.Empty;
+                    using (MySqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            string recipientEmail = reader["Email"].ToString() ?? string.Empty;
+                            string dispatcherName = reader["Name"].ToString() ?? string.Empty;
 
-                    string subject = "Account Registration";
-                    string body = $"Hello {dispatcherName},\n\nYour account has been successfully registered.";
+                            string subject = "Account Registration";
+                            string body = $"Hello {dispatcherName},\n\nYour account has been successfully registered.";
 
-                    SendManagerEmail(recipientEmail, subject, body);
-                }
-                else
-                {
-                    Console.WriteLine("No dispatcher found in the database.");
+                            SendDispatcherEmail(recipientEmail, subject, body);
+                        }
+                        else
+                        {
+                            Console.WriteLine("No dispatcher found in the database.");
+                        }
+                    }
                 }
             }
         }
-    }
-}
 
-// Updated SendManagerEmail method to accept body
-private static void SendManagerEmail(string recipientEmail, string subject, string body)
+// Updated SendDispatcherEmail method to accept body
+private static void SendDispatcherEmail(string recipientEmail, string subject, string body)
 {
     try
     {
