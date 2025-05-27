@@ -12,10 +12,13 @@ CREATE TABLE customer (
 CREATE TABLE customer_order (
   OrderID INT AUTO_INCREMENT PRIMARY KEY,
   CustomerID INT NOT NULL,
-  DispatcherID INT NOT NULL,
+  DispatcherID INT NULL,
   FoodID INT NOT NULL,
   Quantity INT NOT NULL,
+  TotalPrice DECIMAL(10,2) DEFAULT 0,
   OrderDate DATETIME DEFAULT CURRENT_TIMESTAMP,
+  AssignmentStatus INT DEFAULT 0,
+  DeliveryStatus INT DEFAULT 0,
   FOREIGN KEY (CustomerID) REFERENCES customer(CustomerID) ON DELETE CASCADE,
   FOREIGN KEY (DispatcherID) REFERENCES dispatcher(DispatcherID) ON DELETE CASCADE,
   FOREIGN KEY (FoodID) REFERENCES food_menu(FoodID) ON DELETE CASCADE
