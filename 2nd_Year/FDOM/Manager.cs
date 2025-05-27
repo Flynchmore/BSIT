@@ -1,12 +1,16 @@
-﻿using System;
+using System;
 using Manager.ManagerQueries;
 using EntryPoint.Utilities;
 using Manager.ManagerEmail;
+using MySql.Data.MySqlClient;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Manager {
 
 public class ManagerUI
 {
+    private static string currentUserEmail = string.Empty;
+
     public static void ManagerRegister()
     {
         ConsoleCenter.WriteCentered("\nManager Registration");
@@ -33,6 +37,7 @@ public class ManagerUI
         if (ManagerDB.ValidateManagerCredentials(email, password))
         {
             ConsoleCenter.WriteCentered("Login successful!");
+            currentUserEmail = email;
             Managerfunction();
         }
         else
@@ -57,7 +62,7 @@ public class ManagerUI
                AssignDeliveryPersonnel();
                 break;
             case 2:
-               AccountInfoSystem();
+               AccountInfo();
                 break;
             case 3:
                 ConsoleCenter.WriteCentered("Exiting Manager System...");
@@ -90,7 +95,7 @@ public class ManagerUI
                 AssignDeliveryPersonnel();
                 break;
             case 4:
-                AccountInfoSystem();
+                AccountInfo();
                 break;
             case 5:
                 ConsoleCenter.WriteCentered("Exiting Manager System...");
@@ -104,7 +109,7 @@ public class ManagerUI
         ConsoleCenter.WriteCentered("\nAdd Menu Item");
         string name = GetHelper.GetCenteredInput("Enter Item Name: ");
         decimal price = decimal.Parse(GetHelper.GetCenteredInput("Enter Item Price: "));
-        int category = int.Parse(GetHelper.GetCenteredInput("Enter Item Category Number (1.Breakfast, 2.Lunch, 3.Dinner, 4.Dessert): "));
+        int category = int.Parse(GetHelper.GetCenteredInput("Enter Item Category Number (0.Breakfast, 1.Lunch, 2.Dinner, 3.Dessert): "));
         int stacks = int.Parse(GetHelper.GetCenteredInput("Enter Item Stacks: "));
 
         ManagerDB.AddMenuItem(name, price, category, stacks);
@@ -118,7 +123,7 @@ public class ManagerUI
         int id = int.Parse(GetHelper.GetCenteredInput("Enter Item ID to update: "));
         string name = GetHelper.GetCenteredInput("Enter new Item Name: ");
         decimal price = decimal.Parse(GetHelper.GetCenteredInput("Enter new Item Price: "));
-        int category = int.Parse(GetHelper.GetCenteredInput("Enter new Item Category (1.Breakfast, 2.Lunch, 3.Dinner, 4.Dessert): "));
+        int category = int.Parse(GetHelper.GetCenteredInput("Enter new Item Category (0.Breakfast, 1.Lunch, 2.Dinner, 3.Dessert): "));
         int stacks = int.Parse(GetHelper.GetCenteredInput("Enter new Item Stacks: "));
 
         ManagerDB.UpdateMenuItem(id, name, price, category, stacks);
@@ -134,13 +139,121 @@ public class ManagerUI
         ManagerDB.DeleteMenuItem(id);
     }
 
-    private static void AssignDeliveryPersonnel()
+   // Example for Manager.cs or wherever your manager logic resides
+    public static void AssignDeliveryPersonnel()
     {
+        string connectionString = "server=localhost; database=fdom; user=root; password=;";
 
+        // 1. Show unassigned orders
+        string unassignedOrdersQuery = @"
+            SELECT o.OrderID, c.Name AS CustomerName, f.Name AS FoodName, o.Quantity, o.OrderDate
+            FROM customer_order o
+            JOIN customer c ON o.CustomerID = c.CustomerID
+            JOIN food_menu f ON o.FoodID = f.FoodID
+            WHERE o.DispatcherID IS NULL OR o.AssignmentStatus = 0;";
+
+        // 2. Show available dispatchers
+        string dispatcherQuery = "SELECT DispatcherID, Name FROM dispatcher;";
+
+        try
+        {
+            using (var connection = new MySqlConnection(connectionString))
+            {
+                connection.Open();
+
+                // Show unassigned orders
+                ConsoleCenter.WriteCentered("Unassigned Customer Orders:");
+                using (var cmd = new MySqlCommand(unassignedOrdersQuery, connection))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        Console.WriteLine($"OrderID: {reader["OrderID"]}, Customer: {reader["CustomerName"]}, Food: {reader["FoodName"]}, Qty: {reader["Quantity"]}, Date: {reader["OrderDate"]}");
+                    }
+                }
+
+                // Show dispatchers
+                ConsoleCenter.WriteCentered("Available Dispatchers:");
+                using (var cmd = new MySqlCommand(dispatcherQuery, connection))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        Console.WriteLine($"DispatcherID: {reader["DispatcherID"]}, Name: {reader["Name"]}");
+                    }
+                }
+
+                // Get input
+                ConsoleCenter.WriteCentered("Enter OrderID to assign:");
+                int orderId = int.Parse(Console.ReadLine() ?? "0");
+                ConsoleCenter.WriteCentered("Enter DispatcherID to assign:");
+                int dispatcherId = int.Parse(Console.ReadLine() ?? "0");
+
+                // Assign dispatcher
+                string assignQuery = @"
+                    UPDATE customer_order
+                    SET DispatcherID = @DispatcherID, AssignmentStatus = 1
+                    WHERE OrderID = @OrderID;";
+                using (var assignCmd = new MySqlCommand(assignQuery, connection))
+                {
+                    assignCmd.Parameters.AddWithValue("@DispatcherID", dispatcherId);
+                    assignCmd.Parameters.AddWithValue("@OrderID", orderId);
+                    int rows = assignCmd.ExecuteNonQuery();
+                    if (rows > 0)
+                        ConsoleCenter.WriteCentered("Dispatcher assigned successfully!");
+                    else
+                        ConsoleCenter.WriteCentered("Assignment failed. Check IDs.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
     }
-    private static void AccountInfoSystem()
+    public static void AccountInfo()
     {
-        
+        string connectionString = "server=localhost; database=fdom; user=root; password=;";
+        string email = currentUserEmail;
+
+        // Query for Manager
+        string managerQuery = @"
+            SELECT ManagerID, Name, Email, Address, ContactNumber
+            FROM manager
+            WHERE Email = @Email;";
+        try
+        {
+            using (var connection = new MySqlConnection(connectionString))
+            {
+                connection.Open();
+
+                // Check Manager
+                using (var managerCmd = new MySqlCommand(managerQuery, connection))
+                {
+                    managerCmd.Parameters.AddWithValue("@Email", email);
+                    using (var reader = managerCmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            ConsoleCenter.WriteCentered("====== MANAGER INFO ======");
+                            Console.WriteLine($"Manager ID   : {reader["ManagerID"]}");
+                            Console.WriteLine($"Name          : {reader["Name"]}");
+                            Console.WriteLine($"Email         : {reader["Email"]}");
+                            Console.WriteLine($"Address       : {reader["Address"]}");
+                            Console.WriteLine($"ContactNumber : {reader["ContactNumber"]}");
+                            ConsoleCenter.WriteCentered("==========================");
+                            return;
+                        }
+                    }
+                }
+
+                ConsoleCenter.WriteCentered("No account information found for this email.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred while fetching account info: {ex.Message}");
+        }
     }
 }
 }
