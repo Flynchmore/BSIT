@@ -3,7 +3,8 @@ using Manager.ManagerQueries;
 using EntryPoint.Utilities;
 using Manager.ManagerEmail;
 using MySql.Data.MySqlClient;
-using System.Security.Cryptography.X509Certificates;
+using Dispatcher.DispatcherEmail;
+using Customer;
 
 namespace Manager {
 
@@ -47,7 +48,7 @@ public class ManagerUI
     }
     public static void Managerfunction()
     {
-        string[] options = { "Restaurant Database Menu", "Assign Dispatcher Personnel", "Account Info", "Exit" };
+        string[] options = { "Restaurant Database Menu", "Assign Delivery Personnel", "Account Info", "Exit" };
         userChoice.DisplayMenu("Welcome to the Manager System!", options, HandleSelection);
     }
 
@@ -65,7 +66,6 @@ public class ManagerUI
                AccountInfo();
                 break;
             case 3:
-                ConsoleCenter.WriteCentered("Exiting Manager System...");
                 Environment.Exit(0);
                 break;
         }
@@ -73,7 +73,7 @@ public class ManagerUI
 
     private static void ManageRestaurantMenu()
     {
-        string[] options = { "Add Menu Item", "Update Menu Item", "Delete Menu Item", "Assign Delivery Personnel", "Account Info", "Exit"};
+        string[] options = { "Add Menu Item", "Update Menu Item", "Delete Menu Item", "Exit"};
 
         userChoice.DisplayMenu("Managing Restaurant Menu", options, HandleRestaurantMenuSelection);
     }
@@ -92,13 +92,6 @@ public class ManagerUI
                 DeleteMenuItem();
                 break;
             case 3:
-                AssignDeliveryPersonnel();
-                break;
-            case 4:
-                AccountInfo();
-                break;
-            case 5:
-                ConsoleCenter.WriteCentered("Exiting Manager System...");
                 Environment.Exit(0);
                 break;
         }
@@ -157,53 +150,178 @@ public class ManagerUI
 
         try
         {
+                using (var connection = new MySqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    // Show unassigned orders
+                    ConsoleCenter.WriteCentered("Unassigned Customer Orders:");
+                    using (var cmd = new MySqlCommand(unassignedOrdersQuery, connection))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            Console.WriteLine($"OrderID: {reader["OrderID"]}, Customer: {reader["CustomerName"]}, Food: {reader["FoodName"]}, Qty: {reader["Quantity"]}, Date: {reader["OrderDate"]}");
+                        }
+                    }
+
+                    // Show dispatchers
+                    ConsoleCenter.WriteCentered("Available Dispatchers:");
+                    using (var cmd = new MySqlCommand(dispatcherQuery, connection))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            Console.WriteLine($"DispatcherID: {reader["DispatcherID"]}, Name: {reader["Name"]}");
+                        }
+                    }
+
+                    // Get input
+                    ConsoleCenter.WriteCentered("Enter OrderID to assign:");
+                    int orderId = int.Parse(Console.ReadLine() ?? "0");
+                    ConsoleCenter.WriteCentered("Enter DispatcherID to assign:");
+                    int dispatcherId = int.Parse(Console.ReadLine() ?? "0");
+
+                    // Assign dispatcher
+                    string assignQuery = @"
+                    UPDATE customer_order
+                    SET DispatcherID = @DispatcherID, AssignmentStatus = 1
+                    WHERE OrderID = @OrderID;";
+                    using (var assignCmd = new MySqlCommand(assignQuery, connection))
+                    {
+                        assignCmd.Parameters.AddWithValue("@DispatcherID", dispatcherId);
+                        assignCmd.Parameters.AddWithValue("@OrderID", orderId);
+                        int rows = assignCmd.ExecuteNonQuery();
+                        if (rows > 0)
+                            ConsoleCenter.WriteCentered("Dispatcher assigned successfully!");
+                        else
+                            ConsoleCenter.WriteCentered("Assignment failed. Check IDs.");
+                    }
+                
+                    // After successful assignment (rows > 0)
+                    string dispatcherEmail = "";
+                    using (var dispatcherEmailCmd = new MySqlCommand("SELECT Email FROM dispatcher WHERE DispatcherID = @DispatcherID", connection))
+                    {
+                        dispatcherEmailCmd.Parameters.AddWithValue("@DispatcherID", dispatcherId);
+                        using (var reader = dispatcherEmailCmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                                dispatcherEmail = reader["Email"].ToString() ?? string.Empty;
+                        }
+                    }
+
+                    string orderDetailsQuery = @"
+                        SELECT o.OrderID, c.Name AS CustomerName, f.Name AS FoodName, o.Quantity, o.OrderDate
+                        FROM customer_order o
+                        JOIN customer c ON o.CustomerID = c.CustomerID
+                        JOIN food_menu f ON o.FoodID = f.FoodID
+                        WHERE o.OrderID = @OrderID;";
+                    using (var orderDetailsCmd = new MySqlCommand(orderDetailsQuery, connection))
+                    {
+                        orderDetailsCmd.Parameters.AddWithValue("@OrderID", orderId);
+                        using (var reader = orderDetailsCmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                string orderInfo = $@"
+                                                ========== NEW DELIVERY ASSIGNMENT ==========
+                                                OrderID   : {reader["OrderID"]}
+                                                Customer  : {reader["CustomerName"]}
+                                                Food      : {reader["FoodName"]}
+                                                Quantity  : {reader["Quantity"]}
+                                                OrderDate : {reader["OrderDate"]}
+                                                ============================================";
+                                DispatcherEmailOperations.SendOrderAssignmentEmail(dispatcherEmail, "New Delivery Assignment", orderInfo);
+                            }
+                        }
+                    }
+
+                }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
+    
+    public static void UpdateOrderDeliveryStatus()
+    {
+        string connectionString = "server=localhost; database=fdom; user=root; password=;";
+
+        ConsoleCenter.WriteCentered("Enter OrderID to update:");
+        int orderId = int.Parse(Console.ReadLine() ?? "0");
+
+        ConsoleCenter.WriteCentered("Choose new Delivery Status:");
+        Console.WriteLine("0 - Preparing\n1 - Packed\n2 - OutForDelivery\n3 - Delivered");
+        int newStatus = int.Parse(Console.ReadLine() ?? "0");
+
+        string updateQuery = @"
+            UPDATE customer_order
+            SET DeliveryStatus = @DeliveryStatus
+            WHERE OrderID = @OrderID;";
+
+        string customerEmail = "";
+        string orderDetails = "";
+
+        try
+        {
             using (var connection = new MySqlConnection(connectionString))
             {
                 connection.Open();
 
-                // Show unassigned orders
-                ConsoleCenter.WriteCentered("Unassigned Customer Orders:");
-                using (var cmd = new MySqlCommand(unassignedOrdersQuery, connection))
-                using (var reader = cmd.ExecuteReader())
+                // Update delivery status
+                using (var updateCmd = new MySqlCommand(updateQuery, connection))
                 {
-                    while (reader.Read())
-                    {
-                        Console.WriteLine($"OrderID: {reader["OrderID"]}, Customer: {reader["CustomerName"]}, Food: {reader["FoodName"]}, Qty: {reader["Quantity"]}, Date: {reader["OrderDate"]}");
-                    }
-                }
-
-                // Show dispatchers
-                ConsoleCenter.WriteCentered("Available Dispatchers:");
-                using (var cmd = new MySqlCommand(dispatcherQuery, connection))
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        Console.WriteLine($"DispatcherID: {reader["DispatcherID"]}, Name: {reader["Name"]}");
-                    }
-                }
-
-                // Get input
-                ConsoleCenter.WriteCentered("Enter OrderID to assign:");
-                int orderId = int.Parse(Console.ReadLine() ?? "0");
-                ConsoleCenter.WriteCentered("Enter DispatcherID to assign:");
-                int dispatcherId = int.Parse(Console.ReadLine() ?? "0");
-
-                // Assign dispatcher
-                string assignQuery = @"
-                    UPDATE customer_order
-                    SET DispatcherID = @DispatcherID, AssignmentStatus = 1
-                    WHERE OrderID = @OrderID;";
-                using (var assignCmd = new MySqlCommand(assignQuery, connection))
-                {
-                    assignCmd.Parameters.AddWithValue("@DispatcherID", dispatcherId);
-                    assignCmd.Parameters.AddWithValue("@OrderID", orderId);
-                    int rows = assignCmd.ExecuteNonQuery();
+                    updateCmd.Parameters.AddWithValue("@DeliveryStatus", newStatus);
+                    updateCmd.Parameters.AddWithValue("@OrderID", orderId);
+                    int rows = updateCmd.ExecuteNonQuery();
                     if (rows > 0)
-                        ConsoleCenter.WriteCentered("Dispatcher assigned successfully!");
+                        ConsoleCenter.WriteCentered("Delivery status updated successfully!");
                     else
-                        ConsoleCenter.WriteCentered("Assignment failed. Check IDs.");
+                    {
+                        ConsoleCenter.WriteCentered("Update failed. Check OrderID.");
+                        return;
+                    }
                 }
+
+                // Fetch customer email and order info
+                string fetchQuery = @"
+                    SELECT c.Email, o.OrderID, f.Name AS FoodName, o.Quantity, o.TotalPrice, o.OrderDate, o.DeliveryStatus
+                    FROM customer_order o
+                    JOIN customer c ON o.CustomerID = c.CustomerID
+                    JOIN food_menu f ON o.FoodID = f.FoodID
+                    WHERE o.OrderID = @OrderID;";
+                using (var fetchCmd = new MySqlCommand(fetchQuery, connection))
+                {
+                    fetchCmd.Parameters.AddWithValue("@OrderID", orderId);
+                    using (var reader = fetchCmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            customerEmail = reader["Email"].ToString() ?? "";
+                            var deliveryStatus = (CustomerUI.DeliveryStatus)Convert.ToInt32(reader["DeliveryStatus"]);
+                            orderDetails = $@"
+                                        ========== ORDER STATUS UPDATE ==========
+                                        Order ID        : {reader["OrderID"]}
+                                        Food Name       : {reader["FoodName"]}
+                                        Quantity        : {reader["Quantity"]}
+                                        Total Price     : {reader["TotalPrice"]:C}
+                                        Order Date      : {reader["OrderDate"]}
+                                        New Status      : {deliveryStatus}
+                                        =========================================";
+                        }
+                    }
+                }
+            }
+
+            // Send email notification to customer
+            if (!string.IsNullOrEmpty(customerEmail))
+            {
+                Customer.CustomerEmail.CustomerEmailOperations.SendOrderReceiptEmail(
+                    customerEmail,
+                    "Order Delivery Status Updated",
+                    orderDetails
+                );
             }
         }
         catch (Exception ex)
@@ -212,48 +330,48 @@ public class ManagerUI
         }
     }
     public static void AccountInfo()
-    {
-        string connectionString = "server=localhost; database=fdom; user=root; password=;";
-        string email = currentUserEmail;
+        {
+            string connectionString = "server=localhost; database=fdom; user=root; password=;";
+            string email = currentUserEmail;
 
-        // Query for Manager
-        string managerQuery = @"
+            // Query for Manager
+            string managerQuery = @"
             SELECT ManagerID, Name, Email, Address, ContactNumber
             FROM manager
             WHERE Email = @Email;";
-        try
-        {
-            using (var connection = new MySqlConnection(connectionString))
+            try
             {
-                connection.Open();
-
-                // Check Manager
-                using (var managerCmd = new MySqlCommand(managerQuery, connection))
+                using (var connection = new MySqlConnection(connectionString))
                 {
-                    managerCmd.Parameters.AddWithValue("@Email", email);
-                    using (var reader = managerCmd.ExecuteReader())
+                    connection.Open();
+
+                    // Check Manager
+                    using (var managerCmd = new MySqlCommand(managerQuery, connection))
                     {
-                        if (reader.Read())
+                        managerCmd.Parameters.AddWithValue("@Email", email);
+                        using (var reader = managerCmd.ExecuteReader())
                         {
-                            ConsoleCenter.WriteCentered("====== MANAGER INFO ======");
-                            Console.WriteLine($"Manager ID   : {reader["ManagerID"]}");
-                            Console.WriteLine($"Name          : {reader["Name"]}");
-                            Console.WriteLine($"Email         : {reader["Email"]}");
-                            Console.WriteLine($"Address       : {reader["Address"]}");
-                            Console.WriteLine($"ContactNumber : {reader["ContactNumber"]}");
-                            ConsoleCenter.WriteCentered("==========================");
-                            return;
+                            if (reader.Read())
+                            {
+                                ConsoleCenter.WriteCentered("====== MANAGER INFO ======");
+                                Console.WriteLine($"Manager ID   : {reader["ManagerID"]}");
+                                Console.WriteLine($"Name          : {reader["Name"]}");
+                                Console.WriteLine($"Email         : {reader["Email"]}");
+                                Console.WriteLine($"Address       : {reader["Address"]}");
+                                Console.WriteLine($"ContactNumber : {reader["ContactNumber"]}");
+                                ConsoleCenter.WriteCentered("==========================");
+                                return;
+                            }
                         }
                     }
-                }
 
-                ConsoleCenter.WriteCentered("No account information found for this email.");
+                    ConsoleCenter.WriteCentered("No account information found for this email.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred while fetching account info: {ex.Message}");
             }
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"An error occurred while fetching account info: {ex.Message}");
-        }
-    }
 }
 }
