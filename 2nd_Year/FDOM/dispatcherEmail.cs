@@ -18,7 +18,7 @@ namespace Dispatcher.DispatcherEmail
         public static void DispatcherAccountRegistrationEmail()
         {
             string query = @"
-                SELECT DispatcherID, Name, Email, Password, Address, `Contact Number`
+                SELECT DispatcherID, Name, Email, Password, Address, ContactNumber
                 FROM dispatcher
                 ORDER BY DispatcherID DESC LIMIT 1";
 
@@ -48,32 +48,57 @@ namespace Dispatcher.DispatcherEmail
             }
         }
 
-// Updated SendDispatcherEmail method to accept body
-private static void SendDispatcherEmail(string recipientEmail, string subject, string body)
-{
-    try
-    {
-        MailMessage mail = new MailMessage();
-        SmtpClient smtp = new SmtpClient(smtpServer);
+        // Updated SendDispatcherEmail method to accept body
+        private static void SendDispatcherEmail(string recipientEmail, string subject, string body)
+        {
+            try
+            {
+                MailMessage mail = new MailMessage();
+                SmtpClient smtp = new SmtpClient(smtpServer);
 
-        mail.From = new MailAddress(senderEmail);
-        mail.To.Add(recipientEmail);
-        mail.Subject = subject;
-        mail.Body = body;
-        mail.IsBodyHtml = false;
+                mail.From = new MailAddress(senderEmail);
+                mail.To.Add(recipientEmail);
+                mail.Subject = subject;
+                mail.Body = body;
+                mail.IsBodyHtml = false;
 
-        smtp.Port = smtpPort;
-        smtp.Credentials = new NetworkCredential(senderEmail, senderPassword);
-        smtp.EnableSsl = true;
+                smtp.Port = smtpPort;
+                smtp.Credentials = new NetworkCredential(senderEmail, senderPassword);
+                smtp.EnableSsl = true;
 
-        smtp.Send(mail);
-        Console.WriteLine($"Email sent successfully to {recipientEmail}");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Error sending email: {ex.Message}");
-    }
-}
+                smtp.Send(mail);
+                Console.WriteLine($"Email sent successfully to {recipientEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending email: {ex.Message}");
+            }
+        }
 
+        public static void SendOrderAssignmentEmail(string toEmail, string subject, string body)
+        {
+            try
+            {
+                MailMessage mail = new MailMessage();
+                SmtpClient smtp = new SmtpClient(smtpServer);
+
+                mail.From = new MailAddress(senderEmail);
+                mail.To.Add(toEmail);
+                mail.Subject = subject;
+                mail.Body = body;
+                mail.IsBodyHtml = false;
+
+                smtp.Port = smtpPort;
+                smtp.Credentials = new NetworkCredential(senderEmail, senderPassword);
+                smtp.EnableSsl = true;
+
+                smtp.Send(mail);
+                Console.WriteLine($"Order assignment email sent successfully to {toEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending order assignment email: {ex.Message}");
+            }
+        }
     }
 }
