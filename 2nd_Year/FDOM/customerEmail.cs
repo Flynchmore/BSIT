@@ -18,7 +18,7 @@ namespace Customer.CustomerEmail
         public static void CustomerAccountRegistrationEmail()
         {
             string query = @"
-            SELECT CustomerID, Name, Email, Password, Address, `Contact Number`
+            SELECT CustomerID, Name, Email, Password, Address, ContactNumber
             FROM customer
             ORDER BY CustomerID DESC LIMIT 1";
 
@@ -77,8 +77,28 @@ namespace Customer.CustomerEmail
 
         public static void SendOrderReceiptEmail(string toEmail, string subject, string body)
         {
-            // Implement your email sending logic here (SMTP, etc.)
-            Console.WriteLine($"[EMAIL SENT TO {toEmail}]\nSubject: {subject}\n{body}");
+            try
+            {
+                MailMessage mail = new MailMessage();
+                SmtpClient smtp = new SmtpClient(smtpServer);
+
+                mail.From = new MailAddress(senderEmail);
+                mail.To.Add(toEmail);
+                mail.Subject = subject;
+                mail.Body = body;
+                mail.IsBodyHtml = false;
+
+                smtp.Port = smtpPort;
+                smtp.Credentials = new NetworkCredential(senderEmail, senderPassword);
+                smtp.EnableSsl = true;
+
+                smtp.Send(mail);
+                Console.WriteLine($"Order receipt email sent successfully to {toEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending order receipt email: {ex.Message}");
+            }
         }
     }
 }
