@@ -1,7 +1,8 @@
 using System;
 using EntryPoint.Utilities;
 using MySql.Data.MySqlClient;
-using Org.BouncyCastle.Security;
+using Customer.CustomerEmail;
+using Customer;
 
 namespace foodCategory;
 
@@ -164,6 +165,30 @@ public class FoodUI
                     insertOrderCmd.Parameters.AddWithValue("@Quantity", quantity);
                     insertOrderCmd.Parameters.AddWithValue("@TotalPrice", price * quantity);
                     insertOrderCmd.ExecuteNonQuery();
+
+                    // After inserting the order into customer_order
+
+                    string latestOrderQuery = @"
+                        SELECT o.OrderID, o.FoodID, f.Name AS FoodName, o.Quantity, o.TotalPrice, o.OrderDate,
+                            o.AssignmentStatus, o.DeliveryStatus, o.DispatcherID
+                        FROM customer_order o
+                        JOIN food_menu f ON o.FoodID = f.FoodID
+                        WHERE o.CustomerID = @CustomerID
+                        ORDER BY o.OrderDate DESC
+                        LIMIT 1;";
+
+                    using (var latestOrderCmd = new MySqlCommand(latestOrderQuery, connection))
+                    {
+                        latestOrderCmd.Parameters.AddWithValue("@CustomerID", customerId);
+                        using (var latestOrderReader = latestOrderCmd.ExecuteReader())
+                        {
+                            if (latestOrderReader.Read())
+                            {
+                                string receipt = CustomerUI.FormatOrderReceipt(latestOrderReader);
+                                CustomerEmailOperations.SendOrderReceiptEmail(currentUserEmail, "Your Order Receipt", receipt);
+                            }
+                        }
+                    }
 
                     decimal total = price * quantity;
                     ConsoleCenter.WriteCentered("Order placed successfully!");
